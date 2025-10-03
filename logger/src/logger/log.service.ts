@@ -61,6 +61,36 @@ export class LogService {
     });
   }
 
+  // API kategorisi logları
+  logAPI(level: 'info' | 'warn' | 'error' | 'debug', data: LogData) {
+    const logger = WinstonLogger.getLogger(LogCategory.API);
+    logger.log(level, data.message, {
+      userId: data.userId,
+      action: data.action,
+      ...data.metadata
+    });
+  }
+
+  // Database kategorisi logları
+  logDatabase(level: 'info' | 'warn' | 'error' | 'debug', data: LogData) {
+    const logger = WinstonLogger.getLogger(LogCategory.DATABASE);
+    logger.log(level, data.message, {
+      userId: data.userId,
+      action: data.action,
+      ...data.metadata
+    });
+  }
+
+  // Security kategorisi logları
+  logSecurity(level: 'info' | 'warn' | 'error' | 'debug', data: LogData) {
+    const logger = WinstonLogger.getLogger(LogCategory.SECURITY);
+    logger.log(level, data.message, {
+      userId: data.userId,
+      action: data.action,
+      ...data.metadata
+    });
+  }
+
   // Genel log metodu - kategori parametreli
   log(category: LogCategory, level: 'info' | 'warn' | 'error' | 'debug', data: LogData) {
     const logger = WinstonLogger.getLogger(category);
@@ -168,6 +198,73 @@ export class LogService {
           audioLevel: Math.floor(Math.random() * 100),
           sampleRate: 44100,
           channels: 2
+        }
+      });
+    }
+  }
+
+  async generateAPILogs(count: number = 50): Promise<void> {
+    const actions = ['get_request', 'post_request', 'put_request', 'delete_request', 'rate_limit_exceeded', 'api_error'];
+    const endpoints = ['/api/users', '/api/products', '/api/orders', '/api/auth', '/api/files'];
+    const levels: ('info' | 'warn' | 'error')[] = ['info', 'warn', 'error'];
+
+    for (let i = 0; i < count; i++) {
+      const action = actions[Math.floor(Math.random() * actions.length)];
+      const endpoint = endpoints[Math.floor(Math.random() * endpoints.length)];
+      const level = action.includes('error') || action.includes('exceeded') ? 'error' : levels[Math.floor(Math.random() * levels.length)];
+
+      this.logAPI(level, {
+        message: `API: ${action} on ${endpoint}`,
+        action,
+        metadata: {
+          endpoint,
+          method: action.split('_')[0].toUpperCase(),
+          responseTime: Math.floor(Math.random() * 2000),
+          statusCode: level === 'error' ? 500 : 200
+        }
+      });
+    }
+  }
+
+  async generateDatabaseLogs(count: number = 50): Promise<void> {
+    const actions = ['select_query', 'insert_query', 'update_query', 'delete_query', 'connection_error', 'slow_query'];
+    const tables = ['users', 'products', 'orders', 'logs', 'sessions'];
+    const levels: ('info' | 'warn' | 'error')[] = ['info', 'warn', 'error'];
+
+    for (let i = 0; i < count; i++) {
+      const action = actions[Math.floor(Math.random() * actions.length)];
+      const table = tables[Math.floor(Math.random() * tables.length)];
+      const level = action.includes('error') || action.includes('slow') ? 'error' : levels[Math.floor(Math.random() * levels.length)];
+
+      this.logDatabase(level, {
+        message: `DATABASE: ${action} on table ${table}`,
+        action,
+        metadata: {
+          table,
+          queryTime: Math.floor(Math.random() * 5000),
+          affectedRows: Math.floor(Math.random() * 100),
+          database: 'main_db'
+        }
+      });
+    }
+  }
+
+  async generateSecurityLogs(count: number = 50): Promise<void> {
+    const actions = ['login_attempt', 'failed_login', 'brute_force_detected', 'suspicious_activity', 'firewall_block', 'permission_check'];
+    const levels: ('info' | 'warn' | 'error')[] = ['info', 'warn', 'error'];
+
+    for (let i = 0; i < count; i++) {
+      const action = actions[Math.floor(Math.random() * actions.length)];
+      const level = action.includes('failed') || action.includes('brute') || action.includes('suspicious') || action.includes('block') ? 'error' : levels[Math.floor(Math.random() * levels.length)];
+
+      this.logSecurity(level, {
+        message: `SECURITY: ${action}`,
+        action,
+        metadata: {
+          ipAddress: `192.168.1.${Math.floor(Math.random() * 255)}`,
+          userAgent: 'Mozilla/5.0 Test Browser',
+          threatLevel: level === 'error' ? 'HIGH' : 'LOW',
+          sourceCountry: 'TR'
         }
       });
     }

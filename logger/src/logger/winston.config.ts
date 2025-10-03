@@ -23,7 +23,10 @@ export enum LogCategory {
   CLOUD = 'cloud',
   MIC = 'microphone',
   SYSTEM = 'system',
-  USER = 'user'
+  USER = 'user',
+  API = 'api',
+  DATABASE = 'database',
+  SECURITY = 'security'
 }
 
 // Winston logger konfigürasyonları

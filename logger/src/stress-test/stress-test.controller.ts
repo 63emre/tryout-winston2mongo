@@ -150,6 +150,124 @@ export class StressTestController {
     };
   }
 
+  @Get('concurrent')
+  async concurrentStressTest(
+    @Query('count') count: string = '10000',
+    @Query('concurrent') concurrent: string = '5'
+  ): Promise<any> {
+    const logCount = parseInt(count, 10);
+    const concurrentRequests = parseInt(concurrent, 10);
+    
+    console.log(`🔥 CONCURRENT TEST: ${concurrentRequests} parallel requests, ${logCount} logs each`);
+    console.log(`📊 Total logs: ${logCount * concurrentRequests}`);
+    
+    const startTime = Date.now();
+    
+    // Aynı anda birden fazla test çalıştır
+    const promises = Array(concurrentRequests).fill(0).map(async (_, index) => {
+      console.log(`🚀 Starting concurrent request ${index + 1}`);
+      return await this.stressTestService.testWinstonMongoDB(logCount);
+    });
+    
+    try {
+      const results = await Promise.all(promises);
+      const endTime = Date.now();
+      const totalDuration = endTime - startTime;
+      
+      const totalLogs = logCount * concurrentRequests;
+      const totalLogsPerSecond = Math.round(totalLogs / (totalDuration / 1000));
+      
+      const avgLogsPerSecond = results.reduce((sum, r) => sum + r.logsPerSecond, 0) / results.length;
+      const totalErrors = results.reduce((sum, r) => sum + r.errors, 0);
+      
+      return {
+        concurrentRequests,
+        logsPerRequest: logCount,
+        totalLogs,
+        totalDuration,
+        totalLogsPerSecond,
+        avgLogsPerSecondPerRequest: Math.round(avgLogsPerSecond),
+        totalErrors,
+        results,
+        analysis: {
+          message: totalLogsPerSecond > 50000 
+            ? '🚀 EXCELLENT: System handles high concurrent load very well!'
+            : totalLogsPerSecond > 20000 
+            ? '✅ GOOD: Decent performance under concurrent load'
+            : '⚠️ WARNING: Performance degrades under concurrent load',
+          recommendation: totalErrors > 0 
+            ? 'Consider implementing rate limiting or connection pooling'
+            : 'System is stable under concurrent load'
+        }
+      };
+    } catch (error) {
+      return {
+        error: `Concurrent test failed: ${error.message}`,
+        partialResults: 'Some requests may have completed'
+      };
+    }
+  }
+
+  @Get('sync-test')
+  async synchronousTest(
+    @Query('count') count: string = '10000'
+  ): Promise<{
+    winston: any;
+    bulkWrite: any;
+    realComparison: any;
+  }> {
+    const logCount = parseInt(count, 10);
+    console.log(`⏱️ SYNCHRONOUS TEST: Waiting for ALL operations to complete - ${logCount} logs`);
+    
+    // Winston test - gerçekten bitmesini bekle
+    console.log('🧪 Phase 1: Winston (waiting for completion)...');
+    const winstonStartTime = Date.now();
+    const winstonResult = await this.stressTestService.testWinstonMongoDB(logCount);
+    
+    // Ekstra bekleme - logların gerçekten yazıldığından emin ol
+    console.log('⏳ Waiting additional 3 seconds for Winston logs to flush...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    const winstonRealDuration = Date.now() - winstonStartTime;
+    
+    // Bulk write test
+    console.log('🚀 Phase 2: Bulk Write...');
+    const bulkStartTime = Date.now();
+    await this.stressTestService.connectMongo();
+    const bulkResult = await this.stressTestService.testBulkWrite(logCount);
+    const bulkRealDuration = Date.now() - bulkStartTime;
+    
+    const realComparison = {
+      winstonRealSpeed: Math.round(logCount / (winstonRealDuration / 1000)),
+      bulkWriteRealSpeed: Math.round(logCount / (bulkRealDuration / 1000)),
+      speedDifference: ((Math.round(logCount / (bulkRealDuration / 1000)) - Math.round(logCount / (winstonRealDuration / 1000))) / Math.round(logCount / (winstonRealDuration / 1000)) * 100).toFixed(2) + '%',
+      winstonRealDuration,
+      bulkRealDuration,
+      verdict: Math.round(logCount / (bulkRealDuration / 1000)) > Math.round(logCount / (winstonRealDuration / 1000)) 
+        ? 'Bulk Write is ACTUALLY faster when waiting for completion'
+        : 'Winston-MongoDB is faster even with sync waiting'
+    };
+    
+    console.log(`🎯 REAL PERFORMANCE RESULTS:`);
+    console.log(`   Winston (with flush): ${realComparison.winstonRealSpeed} logs/sec`);
+    console.log(`   Bulk Write: ${realComparison.bulkWriteRealSpeed} logs/sec`);
+    console.log(`   Difference: ${realComparison.speedDifference}`);
+    console.log(`   Verdict: ${realComparison.verdict}`);
+    
+    return {
+      winston: {
+        ...winstonResult,
+        realDuration: winstonRealDuration,
+        realLogsPerSecond: realComparison.winstonRealSpeed
+      },
+      bulkWrite: {
+        ...bulkResult,
+        realDuration: bulkRealDuration,
+        realLogsPerSecond: realComparison.bulkWriteRealSpeed
+      },
+      realComparison
+    };
+  }
+
   @Get('benchmark')
   async benchmark(): Promise<{
     lightLoad: any;

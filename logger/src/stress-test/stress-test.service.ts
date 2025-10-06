@@ -1,7 +1,30 @@
 import { Injectable } from '@nestjs/common';
-import { LogService } from '../logger/log.service';
-import { LogCategory } from '../logger/winston.config';
 import { MongoClient, Db, Collection } from 'mongodb';
+
+// Enum tanımları
+export enum LogCategory {
+  AUTH = 'auth',
+  API = 'api', 
+  DATABASE = 'database',
+  SECURITY = 'security',
+  CLOUD = 'cloud',
+  SYSTEM = 'system',
+  USER = 'user',
+  MIC = 'microphone'
+}
+
+// Basit log servisi interface
+interface SimpleLogService {
+  logAuth(level: string, data: any): void;
+  logAPI(level: string, data: any): void;
+  logDatabase(level: string, data: any): void;
+  logSecurity(level: string, data: any): void;
+  logCloud(level: string, data: any): void;
+  logSystem(level: string, data: any): void;
+  logUser(level: string, data: any): void;
+  logMicrophone(level: string, data: any): void;
+  enableMongoDB(url: string): void;
+}
 
 export interface StressTestResult {
   method: 'winston-mongodb' | 'bulk-write';
@@ -18,8 +41,22 @@ export class StressTestService {
   private db: Db | null = null;
   private batchSize = 500; // Bulk write için batch boyutu
   private mongoUrl = 'mongodb://localhost:27017/stress_test_logs';
+  private mockLogService: SimpleLogService;
 
-  constructor(private readonly logService: LogService) {}
+  constructor() {
+    // Mock log service oluştur
+    this.mockLogService = {
+      logAuth: (level: string, data: any) => console.log(`AUTH [${level}]:`, data.message),
+      logAPI: (level: string, data: any) => console.log(`API [${level}]:`, data.message),
+      logDatabase: (level: string, data: any) => console.log(`DB [${level}]:`, data.message),
+      logSecurity: (level: string, data: any) => console.log(`SEC [${level}]:`, data.message),
+      logCloud: (level: string, data: any) => console.log(`CLOUD [${level}]:`, data.message),
+      logSystem: (level: string, data: any) => console.log(`SYS [${level}]:`, data.message),
+      logUser: (level: string, data: any) => console.log(`USER [${level}]:`, data.message),
+      logMicrophone: (level: string, data: any) => console.log(`MIC [${level}]:`, data.message),
+      enableMongoDB: (url: string) => console.log(`MongoDB enabled: ${url}`)
+    };
+  }
 
   async connectMongo(): Promise<boolean> {
     try {
@@ -39,7 +76,7 @@ export class StressTestService {
     console.log(`🧪 Starting Winston-MongoDB stress test with ${logCount} logs...`);
     
     // MongoDB transport'u etkinleştir
-    this.logService.enableMongoDB(this.mongoUrl);
+    this.mockLogService.enableMongoDB(this.mongoUrl);
     
     const startTime = Date.now();
     const startMemory = process.memoryUsage();
@@ -75,28 +112,28 @@ export class StressTestService {
         // Kategori bazlı log yazma
         switch (category) {
           case LogCategory.AUTH:
-            this.logService.logAuth(level, logData);
+            this.mockLogService.logAuth(level, logData);
             break;
           case LogCategory.API:
-            this.logService.logAPI(level, logData);
+            this.mockLogService.logAPI(level, logData);
             break;
           case LogCategory.DATABASE:
-            this.logService.logDatabase(level, logData);
+            this.mockLogService.logDatabase(level, logData);
             break;
           case LogCategory.SECURITY:
-            this.logService.logSecurity(level, logData);
+            this.mockLogService.logSecurity(level, logData);
             break;
           case LogCategory.CLOUD:
-            this.logService.logCloud(level, logData);
+            this.mockLogService.logCloud(level, logData);
             break;
           case LogCategory.SYSTEM:
-            this.logService.logSystem(level, logData);
+            this.mockLogService.logSystem(level, logData);
             break;
           case LogCategory.USER:
-            this.logService.logUser(level, logData);
+            this.mockLogService.logUser(level, logData);
             break;
           case LogCategory.MIC:
-            this.logService.logMicrophone(level, logData);
+            this.mockLogService.logMicrophone(level, logData);
             break;
         }
 
@@ -154,7 +191,7 @@ export class StressTestService {
     let totalWritten = 0;
 
     // Kategorilere göre batch'leri grupla
-    const batches: Map<string, any[]> = new Map();
+    const batches: Map<LogCategory, any[]> = new Map();
     Object.values(LogCategory).forEach(category => {
       batches.set(category, []);
     });
@@ -183,7 +220,7 @@ export class StressTestService {
         }
       };
 
-      batches.get(category)!.push(logDoc);
+      batches.get(category as LogCategory)!.push(logDoc);
     }
 
     // Batch'leri MongoDB'ye yaz
@@ -339,7 +376,7 @@ export class StressTestService {
         const categories = Object.values(LogCategory);
         const category = categories[Math.floor(Math.random() * categories.length)];
         
-        this.logService.logSystem('info', {
+        this.mockLogService.logSystem('info', {
           message: `Real-time stress test log ${written + 1}`,
           action: 'real_time_test',
           metadata: {

@@ -10,13 +10,18 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  @Get('generate-logs')
-  async generateDummyLogs(): Promise<string> {
-    return await this.appService.generateAllDummyLogs();
+  @Get('daily-log-info')
+  async getDailyLogSystemInfo(): Promise<string> {
+    return await this.appService.getDailyLogSystemInfo();
   }
 
-  @Get('enable-mongodb')
-  enableMongoDB(@Query('url') mongoUrl?: string): string {
-    return this.appService.enableMongoDB(mongoUrl);
+  @Get('generate-test-data')
+  async generateTestData(): Promise<string> {
+    return await this.appService.generateTestData();
+  }
+
+  @Get('daily-log-status')
+  async checkDailyLogStatus(): Promise<string> {
+    return await this.appService.checkDailyLogStatus();
   }
 }

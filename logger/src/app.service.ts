@@ -1,99 +1,104 @@
 import { Injectable } from '@nestjs/common';
-import { LogService } from './logger/log.service';
+import { DailyLogService } from './services/daily-log.service';
 
 @Injectable()
 export class AppService {
-  constructor(private readonly logService: LogService) {}
+  constructor(private readonly dailyLogService: DailyLogService) {}
 
   getHello(): string {
-    // 8 farklı kategoriye log örneği
-    this.demonstrateAllLogCategories();
-    return 'Hello World! Check logs in 8 different folders.';
+    // Günlük log sistemi hakkında bilgi
+    this.demonstrateDailyLogging();
+    return 'Hello World! Daily Log Container System is ready for testing.';
   }
 
-  private demonstrateAllLogCategories(): void {
-    // 1. AUTH kategori log
-    this.logService.logAuth('info', {
-      message: 'User authentication successful',
-      userId: 'user123',
-      action: 'login',
-      metadata: { method: 'jwt', device: 'mobile' }
+  private async demonstrateDailyLogging(): Promise<void> {
+    // Günlük container sistemine örnek loglar ekle
+    await this.dailyLogService.addLogToDaily({
+      level: 'info',
+      message: 'Application started successfully',
+      category: 'system',
+      source: 'app-service',
+      metadata: { version: '1.0.0', environment: 'development' }
     });
 
-    // 2. CLOUD kategori log
-    this.logService.logCloud('info', {
-      message: 'File uploaded to cloud storage',
-      userId: 'user123',
-      action: 'upload',
-      metadata: { fileName: 'document.pdf', size: 1024000 }
+    await this.dailyLogService.addLogToDaily({
+      level: 'info',
+      message: 'User authentication system initialized',
+      category: 'auth',
+      source: 'app-service',
+      metadata: { provider: 'jwt', timeout: 3600 }
     });
 
-    // 3. MICROPHONE kategori log
-    this.logService.logMicrophone('warn', {
-      message: 'Audio input level too high',
-      action: 'volume_warning',
-      metadata: { level: 95, threshold: 80 }
-    });
-
-    // 4. SYSTEM kategori log
-    this.logService.logSystem('info', {
-      message: 'System health check completed',
-      action: 'health_check',
-      metadata: { cpu: 45, memory: 67, disk: 23 }
-    });
-
-    // 5. USER kategori log
-    this.logService.logUser('info', {
-      message: 'User profile updated',
-      userId: 'user123',
-      action: 'profile_update',
-      metadata: { fields: ['email', 'phone'] }
-    });
-
-    // 6. API kategori log
-    this.logService.logAPI('info', {
-      message: 'API endpoint called successfully',
-      action: 'get_request',
-      metadata: { endpoint: '/api/users', responseTime: 150, statusCode: 200 }
-    });
-
-    // 7. DATABASE kategori log
-    this.logService.logDatabase('info', {
-      message: 'Database query executed',
-      action: 'select_query',
-      metadata: { table: 'users', queryTime: 25, affectedRows: 10 }
-    });
-
-    // 8. SECURITY kategori log
-    this.logService.logSecurity('warn', {
-      message: 'Multiple login attempts detected',
-      action: 'suspicious_activity',
-      metadata: { ipAddress: '192.168.1.100', attempts: 5, timeWindow: '5min' }
+    await this.dailyLogService.addLogToDaily({
+      level: 'info',
+      message: 'Database connection pool created',
+      category: 'database',
+      source: 'app-service',
+      metadata: { poolSize: 10, maxConnections: 50 }
     });
   }
 
-  // Tüm kategoriler için dummy loglar üret
-  async generateAllDummyLogs(): Promise<string> {
+  // Daily log sistem bilgisi
+  async getDailyLogSystemInfo(): Promise<string> {
+    const dates = await this.dailyLogService.getAllDates();
+    const today = new Date().toISOString().split('T')[0];
+    const todayStats = await this.dailyLogService.getDailyStats(today);
+    
+    return `Daily Log System Info:
+- Total days with logs: ${dates.length}
+- Today's logs: ${todayStats?.totalLogs || 0}
+- Available endpoints: /daily-logs/* for testing
+- MongoDB collection: daily_logs`;
+  }
+
+  // Test verisi oluştur
+  async generateTestData(): Promise<string> {
     try {
-      await this.logService.generateAuthLogs(20);
-      await this.logService.generateCloudLogs(20);
-      await this.logService.generateMicrophoneLogs(20);
-      await this.logService.generateAPILogs(20);
-      await this.logService.generateDatabaseLogs(20);
-      await this.logService.generateSecurityLogs(20);
+      const categories = ['auth', 'api', 'database', 'system', 'security'];
+      const levels: ('info' | 'warn' | 'error' | 'debug')[] = ['info', 'warn', 'error', 'debug'];
       
-      // Mevcut kategoriler için de log üret
-      await this.logService.generateDummyLogs(20);
+      // Bugün için 10 test log'u ekle
+      const testLogs = Array.from({ length: 10 }, (_, index) => ({
+        level: levels[Math.floor(Math.random() * levels.length)],
+        message: `Test log entry ${index + 1} - ${categories[Math.floor(Math.random() * categories.length)]}`,
+        category: categories[Math.floor(Math.random() * categories.length)],
+        source: 'app-service-test',
+        metadata: {
+          testIndex: index,
+          timestamp: new Date().toISOString(),
+          randomValue: Math.random()
+        }
+      }));
       
-      return 'All 8 categories dummy logs generated successfully!';
+      const result = await this.dailyLogService.addMultipleLogs(testLogs);
+      
+      return `Test data generated successfully! Added ${result.addedCount} logs to daily container.`;
     } catch (error) {
-      return `Error generating logs: ${error.message}`;
+      return `Error generating test data: ${error.message}`;
     }
   }
 
-  // MongoDB bağlantısını etkinleştir
-  enableMongoDB(mongoUrl?: string): string {
-    this.logService.enableMongoDB(mongoUrl);
-    return 'MongoDB logging enabled for all 8 categories';
+  // Daily log sistemi durumunu kontrol et
+  async checkDailyLogStatus(): Promise<string> {
+    const dates = await this.dailyLogService.getAllDates();
+    let status = `Daily Log System Status:\n`;
+    status += `- Total containers: ${dates.length}\n`;
+    
+    if (dates.length > 0) {
+      status += `- Date range: ${dates[dates.length-1]} to ${dates[0]}\n`;
+      
+      // Son 3 günün istatistikleri
+      for (let i = 0; i < Math.min(3, dates.length); i++) {
+        const stats = await this.dailyLogService.getDailyStats(dates[i]);
+        if (stats) {
+          status += `- ${dates[i]}: ${stats.totalLogs} logs (${stats.levelCounts.error} errors, ${stats.levelCounts.warn} warnings)\n`;
+        }
+      }
+    } else {
+      status += `- No log containers found\n`;
+      status += `- Use /daily-logs/add-log endpoint to start logging\n`;
+    }
+    
+    return status;
   }
 }
